@@ -1,4 +1,4 @@
-// Package render formats an app.Report for the terminal.
+// Package render formats a scan.Report for the terminal.
 package render
 
 import (
@@ -7,13 +7,13 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/SamyBaouche/tfguard/internal/app"
 	"github.com/SamyBaouche/tfguard/internal/explain"
+	"github.com/SamyBaouche/tfguard/internal/scan"
 	"github.com/SamyBaouche/tfguard/internal/ui"
 )
 
 // Terminal writes a styled scan report to w.
-func Terminal(w io.Writer, rep app.Report) error {
+func Terminal(w io.Writer, rep scan.Report) error {
 	style := ui.NewStyle(w)
 
 	fmt.Fprintln(w)
@@ -58,7 +58,7 @@ func Terminal(w io.Writer, rep app.Report) error {
 	return nil
 }
 
-func writeSummary(w io.Writer, style ui.Style, rep app.Report) {
+func writeSummary(w io.Writer, style ui.Style, rep scan.Report) {
 	ui.BoxTitle(w, style, "Summary")
 	line := fmt.Sprintf("%s %s   %s %s   %s %s   %s %s",
 		style.Green("create"), style.Bold(itoa(rep.Summary.Creates)),
@@ -70,7 +70,7 @@ func writeSummary(w io.Writer, style ui.Style, rep app.Report) {
 	ui.BoxEnd(w, style)
 }
 
-func writeCost(w io.Writer, style ui.Style, rep app.Report) {
+func writeCost(w io.Writer, style ui.Style, rep scan.Report) {
 	ui.BoxTitle(w, style, "Cost estimate")
 	delta := rep.Cost.MonthlyDeltaUSD
 	deltaStr := fmt.Sprintf("%+.2f USD/mo", delta)
@@ -113,7 +113,7 @@ func writeCost(w io.Writer, style ui.Style, rep app.Report) {
 	_ = tw.Flush()
 }
 
-func writeChanges(w io.Writer, style ui.Style, rep app.Report) error {
+func writeChanges(w io.Writer, style ui.Style, rep scan.Report) error {
 	ui.Section(w, style, "Changes")
 	if len(rep.Changes) == 0 {
 		fmt.Fprintln(w, style.Dim("  (none)"))
@@ -134,7 +134,7 @@ func writeChanges(w io.Writer, style ui.Style, rep app.Report) error {
 	return tw.Flush()
 }
 
-func writeFindings(w io.Writer, style ui.Style, rep app.Report) error {
+func writeFindings(w io.Writer, style ui.Style, rep scan.Report) error {
 	ui.Section(w, style, "Policy findings")
 	if len(rep.Policy.Findings) == 0 {
 		fmt.Fprintln(w, "  "+style.Green("✓")+" "+style.Dim("no findings"))
@@ -183,14 +183,14 @@ func writeExplanation(w io.Writer, style ui.Style, exp explain.Explanation, cach
 	}
 }
 
-func writeWarnings(w io.Writer, style ui.Style, rep app.Report) {
+func writeWarnings(w io.Writer, style ui.Style, rep scan.Report) {
 	ui.Section(w, style, "Warnings")
 	for _, warn := range rep.Policy.Warnings {
 		fmt.Fprintf(w, "  %s %s\n", style.Yellow("!"), warn)
 	}
 }
 
-func writeFooter(w io.Writer, style ui.Style, rep app.Report) {
+func writeFooter(w io.Writer, style ui.Style, rep scan.Report) {
 	total := rep.Summary.Creates + rep.Summary.Updates + rep.Summary.Replaces + rep.Summary.Deletes
 	msg := fmt.Sprintf("  %s  %d changes scanned · %d policy findings · max risk %s · cost %+.2f USD/mo",
 		style.Cyan("▸"),

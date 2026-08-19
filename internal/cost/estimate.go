@@ -75,7 +75,13 @@ func EstimateChanges(changes []tfplan.ResourceChange) Estimate {
 	}
 }
 
-// monthlyCost extracts billable attributes from a before/after blob.
+// monthlyCost computes the approximate USD/month for one resource type and
+// one side of the plan change (`before` or `after`).
+//
+// The estimator is intentionally static:
+// - it only reads a small subset of attributes we know how to price
+// - S3/DynamoDB are mostly treated as unpriced (usage-driven)
+// - the goal is to highlight large deltas in reviews, not match AWS billing.
 func monthlyCost(resourceType string, raw json.RawMessage) float64 {
 	attrs := decodeAttrs(raw)
 	if attrs == nil {
@@ -110,6 +116,8 @@ func monthlyCost(resourceType string, raw json.RawMessage) float64 {
 	return total
 }
 
+// decodeAttrs decodes a Terraform before/after blob into a generic map.
+// If the blob is null/unparseable, it returns nil.
 func decodeAttrs(raw json.RawMessage) map[string]any {
 	if len(raw) == 0 || string(raw) == "null" {
 		return nil
@@ -121,6 +129,8 @@ func decodeAttrs(raw json.RawMessage) map[string]any {
 	return attrs
 }
 
+// instanceSKU extracts the instance size identifier (e.g. `t3.micro`) for
+// resources where we have SKU-based pricing.
 func instanceSKU(resourceType string, attrs map[string]any) string {
 	switch resourceType {
 	case "aws_instance":
@@ -145,6 +155,8 @@ func instanceSKU(resourceType string, attrs map[string]any) string {
 	}
 }
 
+// storageGB extracts the provisioned storage size (in GB) when the resource
+// has storage-based pricing in our static table.
 func storageGB(resourceType string, attrs map[string]any) float64 {
 	switch resourceType {
 	case "aws_db_instance":
@@ -159,6 +171,7 @@ func storageGB(resourceType string, attrs map[string]any) float64 {
 	}
 }
 
+// pricingType normalizes resource types so they share the same price table.
 func pricingType(resourceType string) string {
 	switch resourceType {
 	case "aws_elasticache_replication_group":
@@ -168,6 +181,8 @@ func pricingType(resourceType string) string {
 	}
 }
 
+// cacheNodes returns the number of billable nodes for services that price
+// per node (e.g. ElastiCache).
 func cacheNodes(resourceType string, attrs map[string]any) int {
 	switch resourceType {
 	case "aws_elasticache_cluster":
@@ -187,6 +202,7 @@ func cacheNodes(resourceType string, attrs map[string]any) int {
 	}
 }
 
+// stringAttr safely extracts a string attribute.
 func stringAttr(attrs map[string]any, key string) string {
 	v, ok := attrs[key]
 	if !ok || v == nil {
@@ -199,6 +215,7 @@ func stringAttr(attrs map[string]any, key string) string {
 	return s
 }
 
+// floatAttr safely extracts a numeric attribute.
 func floatAttr(attrs map[string]any, key string) float64 {
 	v, ok := attrs[key]
 	if !ok || v == nil {

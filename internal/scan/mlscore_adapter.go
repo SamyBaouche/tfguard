@@ -1,4 +1,4 @@
-package app
+package scan
 
 import (
 	"github.com/SamyBaouche/tfguard/internal/mlscore"
@@ -7,15 +7,16 @@ import (
 	"github.com/SamyBaouche/tfguard/internal/tfplan"
 )
 
-// MLFeatures maps a scan report to model inputs.
+// MLFeatures converts the scan Report into the numeric feature vector
+// expected by the embedded logistic regression model.
 func MLFeatures(rep Report) mlscore.Features {
 	f := mlscore.Features{
-		Creates:       rep.Summary.Creates,
-		Updates:       rep.Summary.Updates,
-		Replaces:      rep.Summary.Replaces,
-		Deletes:       rep.Summary.Deletes,
-		CostDeltaUSD:  rep.Cost.MonthlyDeltaUSD,
-		ChangeCount:   len(rep.Changes),
+		Creates:        rep.Summary.Creates,
+		Updates:        rep.Summary.Updates,
+		Replaces:       rep.Summary.Replaces,
+		Deletes:        rep.Summary.Deletes,
+		CostDeltaUSD:   rep.Cost.MonthlyDeltaUSD,
+		ChangeCount:    len(rep.Changes),
 		MaxActionLevel: maxActionLevel(rep.Changes),
 	}
 	for _, c := range rep.Changes {
@@ -34,6 +35,8 @@ func MLFeatures(rep Report) mlscore.Features {
 	return f
 }
 
+// maxActionLevel summarizes the most "invasive" Terraform action across
+// changes. It is intentionally coarse to keep the feature space small.
 func maxActionLevel(changes []ChangeRisk) int {
 	level := 0
 	for _, c := range changes {
@@ -51,6 +54,8 @@ func maxActionLevel(changes []ChangeRisk) int {
 	return level
 }
 
+// isMutation returns true for changes that alter infrastructure state
+// (create/update/replace/delete), not for reads/no-ops.
 func isMutation(a tfplan.Action) bool {
 	switch a {
 	case tfplan.ActionUpdate, tfplan.ActionReplace, tfplan.ActionDelete:

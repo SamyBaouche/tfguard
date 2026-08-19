@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/SamyBaouche/tfguard/internal/app"
 	"github.com/SamyBaouche/tfguard/internal/explain"
 	"github.com/SamyBaouche/tfguard/internal/render"
+	"github.com/SamyBaouche/tfguard/internal/scan"
 	"github.com/SamyBaouche/tfguard/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -71,11 +71,11 @@ Progress steps animate in a TTY; set NO_COLOR=1 for plain output.`,
 }
 
 func runScan(cmd *cobra.Command, f *scanFlags) error {
-	threshold, failOnEnabled, err := app.ParseFailOn(f.failOn)
+	threshold, failOnEnabled, err := scan.ParseFailOn(f.failOn)
 	if err != nil {
 		return &exitError{code: 2, msg: err.Error()}
 	}
-	costLimit, costEnabled, err := app.ParseMaxCostIncrease(f.maxCostIncrease)
+	costLimit, costEnabled, err := scan.ParseMaxCostIncrease(f.maxCostIncrease)
 	if err != nil {
 		return &exitError{code: 2, msg: err.Error()}
 	}
@@ -90,7 +90,7 @@ func runScan(cmd *cobra.Command, f *scanFlags) error {
 
 	spin := ui.NewSpinner(errW, style)
 
-	rep, err := app.Run(context.Background(), app.Options{
+	rep, err := scan.Run(context.Background(), scan.Options{
 		PlanPath:     f.plan,
 		TerraformDir: f.dir,
 		SkipCheckov:  f.skipCheckov,
@@ -105,7 +105,7 @@ func runScan(cmd *cobra.Command, f *scanFlags) error {
 
 	if !f.noAI {
 		spin.Start("Generating AI summary")
-		if err := app.AttachExplanation(context.Background(), &rep, explain.Options{
+		if err := scan.AttachExplanation(context.Background(), &rep, explain.Options{
 			Skip:      false,
 			OllamaURL: f.ollamaURL,
 			Model:     f.ollamaModel,
@@ -126,14 +126,14 @@ func runScan(cmd *cobra.Command, f *scanFlags) error {
 		return &exitError{code: 1, msg: fmt.Sprintf("render: %v", err)}
 	}
 
-	if app.ShouldFail(rep, threshold, failOnEnabled) {
+	if scan.ShouldFail(rep, threshold, failOnEnabled) {
 		return &exitError{
 			code: 1,
 			msg: fmt.Sprintf("fail-on %s triggered (max risk=%s, findings=%d)",
 				threshold.String(), rep.MaxRisk.String(), len(rep.Policy.Findings)),
 		}
 	}
-	if app.CostExceeded(rep, costLimit, costEnabled) {
+	if scan.CostExceeded(rep, costLimit, costEnabled) {
 		return &exitError{
 			code: 1,
 			msg: fmt.Sprintf("max-cost-increase %.2f triggered (delta=%+.2f USD/mo)",

@@ -71,10 +71,10 @@ func TestEstimateCreateDelete(t *testing.T) {
 func TestEstimateTopThreeDrivers(t *testing.T) {
 	t.Parallel()
 	changes := []tfplan.ResourceChange{
-		mkInstance("a", "t3.micro", "t3.small"),   // +7.59
-		mkInstance("b", "t3.micro", "t3.medium"),  // +22.78
-		mkInstance("c", "t3.nano", "t3.large"),    // +56.94
-		mkInstance("d", "t3.micro", "t3.micro"),   // 0 — skipped as priced with 0 delta still priced
+		mkInstance("a", "t3.micro", "t3.small"),  // +7.59
+		mkInstance("b", "t3.micro", "t3.medium"), // +22.78
+		mkInstance("c", "t3.nano", "t3.large"),   // +56.94
+		mkInstance("d", "t3.micro", "t3.micro"),  // 0 — skipped as priced with 0 delta still priced
 	}
 	// d has same type both sides → delta 0 but still priced; still a driver.
 	got := EstimateChanges(changes)

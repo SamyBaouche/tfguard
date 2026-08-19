@@ -77,7 +77,7 @@ func (s *Spinner) finish(mark, detail string) {
 
 	line := fmt.Sprintf("  %s %s", mark, msg)
 	if detail != "" {
-		line += s.style.Dim("  ·  "+detail)
+		line += s.style.Dim("  ·  " + detail)
 	}
 	if wasActive {
 		fmt.Fprintf(s.w, "\r\033[2K%s\n", line)

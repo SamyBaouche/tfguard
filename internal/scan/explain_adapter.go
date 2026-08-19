@@ -1,4 +1,4 @@
-package app
+package scan
 
 import (
 	"context"
@@ -6,7 +6,10 @@ import (
 	"github.com/SamyBaouche/tfguard/internal/explain"
 )
 
-// ExplainInput builds a compact LLM context from a scan report.
+// ExplainInput builds the compact JSON context used by the LLM explainer.
+//
+// Keeping this logic in the scan layer avoids importing `scan` from the `explain`
+// package (which would create an undesirable dependency direction).
 func ExplainInput(rep Report) explain.Input {
 	in := explain.Input{
 		MaxRisk:        rep.MaxRisk.String(),
@@ -45,7 +48,8 @@ func ExplainInput(rep Report) explain.Input {
 	return in
 }
 
-// AttachExplanation runs the LLM explainer and stores the result on the report.
+// AttachExplanation calls the local Ollama-based explainer (unless disabled)
+// and attaches the structured result onto the scan Report.
 func AttachExplanation(ctx context.Context, rep *Report, opts explain.Options) error {
 	res, err := explain.Explain(ctx, ExplainInput(*rep), opts)
 	if err != nil {

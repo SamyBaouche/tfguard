@@ -1,5 +1,12 @@
-// Package app wires tfplan + risk + policy + cost into one Report for the CLI.
-package app
+// Package scan orchestrates a tfplan review and builds the final Report for the CLI.
+//
+// It is the "pipeline coordinator" layer:
+// 1. parse + summarize plan mutations
+// 2. classify change risk (SAFE..CRITICAL)
+// 3. run policy scanners (OPA, optional Checkov/tfsec)
+// 4. estimate a static AWS monthly cost delta
+// 5. compute the embedded ML high-risk probability
+package scan
 
 import (
 	"context"
@@ -17,6 +24,7 @@ import (
 )
 
 // Progress receives scan phase updates for animated CLI feedback.
+// When nil, the pipeline uses a no-op implementation.
 type Progress interface {
 	Start(message string)
 	Done(detail string)
@@ -68,7 +76,8 @@ type Options struct {
 	Progress     Progress // optional; animated CLI steps when set
 }
 
-// Run parses the plan, classifies each change, and runs policy scanners.
+// Run parses the terraform plan, classifies each change, runs policy scanners,
+// estimates cost delta, and computes the ML score.
 func Run(ctx context.Context, opts Options) (Report, error) {
 	prog := opts.Progress
 	if prog == nil {

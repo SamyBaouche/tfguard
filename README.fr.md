@@ -26,7 +26,7 @@ flowchart LR
 | Risque | `internal/risk` | Noter chaque changement |
 | Policy | `internal/policy` | OPA + scanners optionnels |
 | Coût | `internal/cost` | Delta mensuel AWS statique |
-| Orchestration | `internal/app` | Rapport + fail-on / max-cost-increase |
+| Orchestration | `internal/scan` | Rapport + fail-on / max-cost-increase |
 | CLI | `cmd/tfguard` | Commandes Cobra : `scan`, `version` |
 
 ## Usage

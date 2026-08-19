@@ -5,20 +5,20 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SamyBaouche/tfguard/internal/app"
 	"github.com/SamyBaouche/tfguard/internal/cost"
 	"github.com/SamyBaouche/tfguard/internal/policy"
 	"github.com/SamyBaouche/tfguard/internal/risk"
+	"github.com/SamyBaouche/tfguard/internal/scan"
 	"github.com/SamyBaouche/tfguard/internal/tfplan"
 )
 
 func TestTerminal(t *testing.T) {
 	t.Parallel()
-	rep := app.Report{
+	rep := scan.Report{
 		PlanPath: "plan.json",
 		MaxRisk:  risk.CRITICAL,
 		Summary:  tfplan.Summary{Deletes: 1},
-		Changes: []app.ChangeRisk{{
+		Changes: []scan.ChangeRisk{{
 			Address: "aws_db_instance.main",
 			Type:    "aws_db_instance",
 			Action:  tfplan.ActionDelete,

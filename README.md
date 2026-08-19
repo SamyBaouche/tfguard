@@ -39,7 +39,7 @@ flowchart LR
 | Cost | `internal/cost` | Static AWS monthly delta from before/after attributes |
 | ML score | `internal/mlscore` | Embedded logistic regression high-risk probability |
 | Explain | `internal/explain` | Optional Ollama LLM summary (`--no-ai` to skip) |
-| Orchestrate | `internal/app` | Build `Report`; evaluate `-fail-on` / `--max-cost-increase` |
+| Orchestrate | `internal/scan` | Build `Report`; evaluate `-fail-on` / `--max-cost-increase` |
 | Present | `internal/render` | Terminal tables |
 | CLI | `cmd/tfguard` | Cobra commands: `scan`, `version` |
 
@@ -133,7 +133,7 @@ internal/policy/   Checkov / tfsec / OPA
 internal/cost/     static AWS cost delta
 internal/mlscore/  embedded ML risk probability
 internal/explain/  optional Ollama LLM summary
-internal/app/      orchestration + fail-on
+internal/scan/     orchestration + fail-on
 internal/render/   terminal report
 policies/          embedded Rego rules
 scripts/           dataset + model training
