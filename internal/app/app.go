@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/SamyBaouche/tfguard/internal/cost"
+	"github.com/SamyBaouche/tfguard/internal/explain"
+	"github.com/SamyBaouche/tfguard/internal/mlscore"
 	"github.com/SamyBaouche/tfguard/internal/policy"
 	"github.com/SamyBaouche/tfguard/internal/risk"
 	"github.com/SamyBaouche/tfguard/internal/tfplan"
@@ -43,6 +45,16 @@ type Report struct {
 	MaxRisk  risk.Level // highest Level among Changes
 	Policy   policy.Result
 	Cost     cost.Estimate
+	Explain  *ExplainResult
+	ML       mlscore.Score
+}
+
+// ExplainResult holds the optional LLM explanation attached after Run.
+type ExplainResult struct {
+	Explanation *explain.Explanation
+	Cached      bool
+	Skipped     bool
+	Warning     string
 }
 
 // Options controls Run (plan path and which scanners to skip).
@@ -111,14 +123,16 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 		prog.Done(fmt.Sprintf("%+.2f USD/mo · %d priced", costEst.MonthlyDeltaUSD, costEst.Priced))
 	}
 
-	return Report{
+	rep := Report{
 		PlanPath: opts.PlanPath,
 		Summary:  summary,
 		Changes:  changes,
 		MaxRisk:  maxRisk,
 		Policy:   pol,
 		Cost:     costEst,
-	}, nil
+	}
+	rep.ML = mlscore.Predict(MLFeatures(rep))
+	return rep, nil
 }
 
 // ParseFailOn parses SAFE|CAUTION|DANGER|CRITICAL for the CLI flag.

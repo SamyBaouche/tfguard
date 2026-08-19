@@ -1,0 +1,11 @@
+{
+  "precision": 1.0,
+  "recall": 0.9778,
+  "f1": 0.9888,
+  "tp": 44,
+  "fp": 0,
+  "fn": 1,
+  "tn": 5,
+  "train_size": 200,
+  "test_size": 50
+}

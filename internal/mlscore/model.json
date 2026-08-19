@@ -1,0 +1,27 @@
+{
+  "features": [
+    "creates",
+    "updates",
+    "replaces",
+    "deletes",
+    "stateful_mutations",
+    "critical_findings",
+    "high_findings",
+    "cost_delta_usd",
+    "max_action_level",
+    "change_count"
+  ],
+  "intercept": -35.335645718824765,
+  "weights": [
+    -13.169048671001267,
+    -13.088258931618261,
+    15.929781640920634,
+    15.165801919120534,
+    24.61071606042508,
+    76.50813571628751,
+    64.32772896433322,
+    1.2041956531753257,
+    -2.9210950108664617,
+    4.838275957421736
+  ]
+}

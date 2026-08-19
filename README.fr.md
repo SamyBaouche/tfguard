@@ -2,6 +2,8 @@
 
 **Langue :** [English](README.md) | Français
 
+![Démo tfguard scan](docs/demo.gif)
+
 Revue de plans Terraform (AWS) : parse du JSON, classification de risque (`SAFE` → `CRITICAL`), policies OPA (et Checkov/tfsec optionnels), échec CI via `-fail-on`.
 
 ## Pipeline
@@ -54,4 +56,4 @@ Prévu : score ML, explainer LLM, GitHub Action.
 
 ## Licence
 
-Apache 2.0 prévu.
+Apache 2.0 — voir [LICENSE](LICENSE).

@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/SamyBaouche/tfguard/internal/app"
+	"github.com/SamyBaouche/tfguard/internal/explain"
 	"github.com/SamyBaouche/tfguard/internal/ui"
 )
 
@@ -19,6 +20,13 @@ func Terminal(w io.Writer, rep app.Report) error {
 	ui.BoxTitle(w, style, "Scan report")
 	ui.BoxLine(w, style, style.Dim("plan")+"   "+rep.PlanPath)
 	ui.BoxLine(w, style, style.Dim("risk")+"   "+style.Risk(rep.MaxRisk.String())+style.Dim("  (highest)"))
+	mlPct := fmt.Sprintf("%.0f%%", rep.ML.Probability*100)
+	if rep.ML.HighRisk {
+		mlPct = style.Red(mlPct)
+	} else {
+		mlPct = style.Green(mlPct)
+	}
+	ui.BoxLine(w, style, style.Dim("ml")+"     "+mlPct+style.Dim(" high-risk probability"))
 	ui.BoxEnd(w, style)
 	fmt.Fprintln(w)
 
@@ -36,6 +44,14 @@ func Terminal(w io.Writer, rep app.Report) error {
 	if len(rep.Policy.Warnings) > 0 {
 		fmt.Fprintln(w)
 		writeWarnings(w, style, rep)
+	}
+	if rep.Explain != nil && rep.Explain.Explanation != nil {
+		fmt.Fprintln(w)
+		writeExplanation(w, style, *rep.Explain.Explanation, rep.Explain.Cached)
+	}
+	if rep.Explain != nil && rep.Explain.Warning != "" {
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "  %s %s\n", style.Yellow("!"), rep.Explain.Warning)
 	}
 	fmt.Fprintln(w)
 	writeFooter(w, style, rep)
@@ -139,6 +155,32 @@ func writeFindings(w io.Writer, style ui.Style, rep app.Report) error {
 		)
 	}
 	return tw.Flush()
+}
+
+func writeExplanation(w io.Writer, style ui.Style, exp explain.Explanation, cached bool) {
+	title := "AI summary"
+	if cached {
+		title += " (cached)"
+	}
+	ui.BoxTitle(w, style, title)
+	ui.BoxLine(w, style, exp.Summary)
+	ui.BoxEnd(w, style)
+
+	if len(exp.Risks) > 0 {
+		ui.Section(w, style, "Key risks")
+		for _, r := range exp.Risks {
+			fmt.Fprintf(w, "  %s %s\n", style.Red("•"), r)
+		}
+	}
+	if len(exp.Recommendations) > 0 {
+		ui.Section(w, style, "Recommendations")
+		for _, r := range exp.Recommendations {
+			fmt.Fprintf(w, "  %s %s\n", style.Cyan("•"), r)
+		}
+	}
+	if exp.CostNote != "" {
+		fmt.Fprintf(w, "  %s %s\n", style.Dim("cost:"), exp.CostNote)
+	}
 }
 
 func writeWarnings(w io.Writer, style ui.Style, rep app.Report) {

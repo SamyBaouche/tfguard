@@ -1,0 +1,72 @@
+name: tfguard scan
+
+description: Analyze a Terraform plan JSON and comment the report on pull requests.
+
+inputs:
+  plan-path:
+    description: Path to terraform plan JSON
+    required: true
+  terraform-dir:
+    description: Terraform source directory for Checkov/tfsec
+    required: false
+    default: ""
+  fail-on:
+    description: Exit 1 at this risk level (SAFE|CAUTION|DANGER|CRITICAL)
+    required: false
+    default: ""
+  max-cost-increase:
+    description: Exit 1 if monthly cost delta USD exceeds this value
+    required: false
+    default: ""
+  no-ai:
+    description: Skip the Ollama LLM explainer
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Install tfguard
+      shell: bash
+      run: |
+        set -euo pipefail
+        go build -ldflags="-X main.Version=action" -o "$RUNNER_TEMP/tfguard" ./cmd/tfguard
+
+    - name: Run scan
+      shell: bash
+      run: |
+        set -euo pipefail
+        args=(scan --plan "${{ inputs.plan-path }}" --no-banner)
+        if [ -n "${{ inputs.terraform-dir }}" ]; then
+          args+=(--dir "${{ inputs.terraform-dir }}")
+        fi
+        if [ -n "${{ inputs.fail-on }}" ]; then
+          args+=(--fail-on "${{ inputs.fail-on }}")
+        fi
+        if [ -n "${{ inputs.max-cost-increase }}" ]; then
+          args+=(--max-cost-increase "${{ inputs.max-cost-increase }}")
+        fi
+        if [ "${{ inputs.no-ai }}" = "true" ]; then
+          args+=(--no-ai)
+        fi
+        "$RUNNER_TEMP/tfguard" "${args[@]}" | tee "$RUNNER_TEMP/tfguard-report.txt"
+
+    - name: Comment PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const body = [
+            '## tfguard scan report',
+            '',
+            '```text',
+            fs.readFileSync(process.env.RUNNER_TEMP + '/tfguard-report.txt', 'utf8').trim(),
+            '```',
+          ].join('\n');
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body,
+          });

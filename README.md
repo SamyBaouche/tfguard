@@ -8,6 +8,8 @@ Terraform plan reviewer for AWS. Parses `terraform plan -json`, classifies chang
 
 **Language:** English | [Français](README.fr.md)
 
+![tfguard scan demo](docs/demo.gif)
+
 ---
 
 ## Problem
@@ -35,6 +37,8 @@ flowchart LR
 | Risk | `internal/risk` | Score each change; escalate stateful AWS types |
 | Policy | `internal/policy` | OPA Rego (embedded) + optional Checkov/tfsec → `Finding` |
 | Cost | `internal/cost` | Static AWS monthly delta from before/after attributes |
+| ML score | `internal/mlscore` | Embedded logistic regression high-risk probability |
+| Explain | `internal/explain` | Optional Ollama LLM summary (`--no-ai` to skip) |
 | Orchestrate | `internal/app` | Build `Report`; evaluate `-fail-on` / `--max-cost-increase` |
 | Present | `internal/render` | Terminal tables |
 | CLI | `cmd/tfguard` | Cobra commands: `scan`, `version` |
@@ -81,6 +85,9 @@ make build
 
 # Fail when monthly cost delta exceeds $50
 ./bin/tfguard scan --plan plan.json --max-cost-increase 50
+
+# Skip local Ollama explainer (recommended in CI)
+./bin/tfguard scan --plan plan.json --no-ai
 ```
 
 | Flag | Description |
@@ -89,6 +96,8 @@ make build
 | `--dir` | Terraform root for Checkov/tfsec |
 | `--fail-on` | `SAFE` \| `CAUTION` \| `DANGER` \| `CRITICAL` |
 | `--max-cost-increase` | Exit 1 if monthly cost delta USD exceeds this value |
+| `--no-ai` | Skip the Ollama LLM explainer |
+| `--ollama-url` / `--ollama-model` | Ollama endpoint and model (default `llama3.2`) |
 | `--skip-checkov` / `--skip-tfsec` / `--skip-opa` / `--skip-cost` | Disable a stage |
 
 **Exit codes:** `0` ok · `1` threshold hit or runtime error · `2` usage error
@@ -122,9 +131,12 @@ internal/tfplan/   plan parse + summary
 internal/risk/     risk levels
 internal/policy/   Checkov / tfsec / OPA
 internal/cost/     static AWS cost delta
+internal/mlscore/  embedded ML risk probability
+internal/explain/  optional Ollama LLM summary
 internal/app/      orchestration + fail-on
 internal/render/   terminal report
 policies/          embedded Rego rules
+scripts/           dataset + model training
 testdata/          fixtures for unit tests
 ```
 
@@ -137,10 +149,36 @@ Extracts billable attributes from each change’s before/after (`instance_type`,
 
 Use `--max-cost-increase <USD>` as a CI gate on positive deltas. Figures are for plan review, not billing accuracy.
 
+## ML risk score
+
+Trained logistic regression on ~250 synthetic labeled plans (`scripts/generate_dataset.py` + `scripts/train_model.py`).
+Features: change counts, stateful mutations, finding severities, cost delta.
+Coefficients are embedded in the binary (`internal/mlscore/model.json`).
+
+Hold-out metrics (seed=42): **precision 1.00 · recall 0.98 · F1 0.99**.
+
+## AI explainer (optional)
+
+When Ollama is running locally, tfguard sends a compact JSON context (changes + findings + cost) to `/api/generate` and prints a structured summary.
+Responses are cached by SHA-256 under `$XDG_CACHE_HOME/tfguard/explain/`.
+Use `--no-ai` in CI or when Ollama is unavailable.
+
+## GitHub Action
+
+Use the repo root `action.yml` in a workflow:
+
+```yaml
+- uses: ./ 
+  with:
+    plan-path: plan.json
+    fail-on: DANGER
+    no-ai: "true"
+```
+
 ## Roadmap
 
-1. **Done** — parse, risk, policies, CLI, `-fail-on`, static AWS cost delta
-2. **Planned** — ML risk score, optional LLM explainer (`--no-ai`), GitHub Action, GoReleaser
+1. **Done** — parse, risk, policies, CLI, cost delta, ML score, Ollama explainer, GitHub Action scaffold
+2. **Planned** — demo GIF, GoReleaser tag `v0.1.0`, richer ML dataset
 
 ## Development
 
@@ -154,4 +192,4 @@ make test && make vet && make fmt
 
 ## License
 
-Apache 2.0 intended.
+Apache 2.0 — see [LICENSE](LICENSE).
