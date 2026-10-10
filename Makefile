@@ -1,4 +1,4 @@
-.PHONY: run build fmt test vet clean
+.PHONY: run build fmt test test-integration vet clean
 
 run:
 	go run ./cmd/tfguard
@@ -11,6 +11,10 @@ fmt:
 
 test:
 	go test ./... -cover
+
+# Requires terraform on PATH; runs `terraform init/validate` on testdata/fix cases.
+test-integration:
+	go test ./internal/fix/ -integration -count=1 -v
 
 vet:
 	go vet ./...

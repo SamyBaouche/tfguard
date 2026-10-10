@@ -337,6 +337,7 @@ jobs:
 ```bash
 make build   # build bin/tfguard
 make test    # run tests with coverage
+make test-integration  # also run the real terraform CLI (slow, needs terraform)
 make vet     # static checks
 make fmt     # format code
 make clean   # remove bin/
@@ -345,6 +346,7 @@ make clean   # remove bin/
 ### Testing
 
 - Unit tests use JSON fixtures in `testdata/`; they never call Terraform, AWS or an LLM.
+- Integration tests run the real `terraform init` and `terraform validate` on `testdata/fix/` cases. They are skipped unless you pass `-integration` (`make test-integration`).
 - Core packages are almost fully covered: `risk` 100%, `tfplan` ~98%, `mlscore` ~93%.
 
 ### Retrain the ML model
