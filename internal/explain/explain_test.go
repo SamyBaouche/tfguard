@@ -103,6 +103,13 @@ func TestExplainOllama(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
+		var req map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		if _, ok := req["format"].(map[string]any); !ok {
+			t.Errorf("format must be a JSON schema object, got %T", req["format"])
+		}
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"response": `{"summary":"Test summary","risks":["delete RDS"],"recommendations":["block deploy"],"cost_note":"small increase"}`,
 		})

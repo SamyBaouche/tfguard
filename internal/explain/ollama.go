@@ -35,11 +35,12 @@ func newOllamaClient(baseURL, model string) *ollamaClient {
 	}
 }
 
+// Ollama rejects a schema sent as a JSON string; it must be a JSON object.
 type generateRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
-	Format string `json:"format"`
+	Model  string          `json:"model"`
+	Prompt string          `json:"prompt"`
+	Stream bool            `json:"stream"`
+	Format json.RawMessage `json:"format"`
 }
 
 type generateResponse struct {
@@ -51,7 +52,7 @@ func (c *ollamaClient) generate(ctx context.Context, prompt string) ([]byte, err
 		Model:  c.model,
 		Prompt: prompt,
 		Stream: false,
-		Format: JSONSchema,
+		Format: json.RawMessage(JSONSchema),
 	})
 	if err != nil {
 		return nil, err
