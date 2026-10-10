@@ -1,403 +1,355 @@
 # tfguard
 
-**Revueur de plans Terraform pour AWS** — parse `terraform plan -json`, classifie le risque, exécute les policies de sécurité, estime l'impact coût, score ML, et bloque la CI avant `terraform apply`.
+**Un relecteur Terraform pour AWS, à lancer avant `apply`.** tfguard lit le JSON d'un `terraform plan`, évalue le risque de chaque changement, applique des règles de sécurité, estime l'écart de coût mensuel et fait échouer la CI quand un seuil est atteint — sans aucun identifiant cloud.
 
+[![CI](https://github.com/SamyBaouche/tfguard/actions/workflows/ci.yml/badge.svg)](https://github.com/SamyBaouche/tfguard/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/SamyBaouche/tfguard?label=v0.1.0)](https://github.com/SamyBaouche/tfguard/releases/tag/v0.1.0)
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![Terraform](https://img.shields.io/badge/Terraform-plan%20JSON-844FBA?logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![OPA](https://img.shields.io/badge/OPA-Rego-000000?logo=openpolicyagent&logoColor=white)](https://www.openpolicyagent.org/)
-[![Release](https://img.shields.io/github/v/release/SamyBaouche/tfguard?label=v0.1.0)](https://github.com/SamyBaouche/tfguard/releases/tag/v0.1.0)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-> [English](README.md) · **Français**
+> Lire en [English](README.md) · **Français**
 
----
+## Sommaire
 
-## Table des matières
-
-- [Démo](#démo)
-- [C'est quoi tfguard ?](#cest-quoi-tfguard-)
-- [Fonctionnalités](#fonctionnalités)
-- [Comment ça marche](#comment-ça-marche)
-- [Installation](#installation)
-- [Démarrage rapide](#démarrage-rapide)
-- [Générer un plan Terraform JSON](#générer-un-plan-terraform-json)
-- [Référence CLI](#référence-cli)
-- [Sections du rapport](#sections-du-rapport)
-- [Modèle de risque](#modèle-de-risque)
-- [Policies de sécurité](#policies-de-sécurité)
-- [Estimation de coût](#estimation-de-coût)
-- [Score ML](#score-ml)
-- [Explainer IA (optionnel)](#explainer-ia-optionnel)
-- [Intégration CI/CD](#intégration-cicd)
-- [GitHub Action](#github-action)
-- [Structure du projet](#structure-du-projet)
-- [Développement](#développement)
-- [Roadmap](#roadmap)
-- [Licence](#licence)
+1. [Présentation](#1-présentation)
+2. [Démarrage rapide](#2-démarrage-rapide)
+3. [Utilisation](#3-utilisation)
+4. [Fonctionnement](#4-fonctionnement)
+5. [Ce que tfguard vérifie](#5-ce-que-tfguard-vérifie)
+6. [Intégration CI/CD](#6-intégration-cicd)
+7. [Développement](#7-développement)
+8. [Conception et limites](#8-conception-et-limites)
+9. [Feuille de route](#9-feuille-de-route)
+10. [Contribution et licence](#10-contribution-et-licence)
 
 ---
 
-## Démo
+## 1. Présentation
 
-![Démo tfguard scan](docs/demo.gif)
+Un `terraform plan` réussi n'est pas un changement sûr. Les gros diffs cachent une base de données supprimée, un security group ouvert ou un redimensionnement coûteux. tfguard relit le plan **avant `apply`** et répond à cinq questions :
 
-> **Ajoute tes propres captures** dans `docs/images/` :
->
-> | Image | Fichier suggéré | Contenu à capturer |
-> |-------|-----------------|-------------------|
-> | Rapport complet | `docs/images/report-full.png` | Sortie complète du `scan` |
-> | Architecture | `docs/images/architecture.png` | Schéma du pipeline |
-> | Drivers de coût | `docs/images/cost-drivers.png` | Table top 3 cost drivers |
-> | Commentaire PR GitHub | `docs/images/ci-pr-comment.png` | Commentaire de l'Action sur une PR |
-> | Matrice de risque | `docs/images/risk-matrix.png` | Légende SAFE → CRITICAL |
+| Question | Réponse de tfguard |
+|---|---|
+| Quel est le risque de chaque changement ? | Un niveau de `SAFE` à `CRITICAL`, plus élevé pour les ressources qui stockent des données |
+| Est-ce sécurisé ? | Règles OPA/Rego intégrées, plus Checkov et tfsec s'ils sont installés |
+| Combien ça va coûter ? | Écart mensuel estimé en USD et principales sources de coût |
+| Quel est le risque global du plan ? | Probabilité de risque élevé calculée par machine learning |
+| La CI doit-elle bloquer ? | Code de sortie `1` quand `--fail-on` ou `--max-cost-increase` est atteint |
 
-<!-- Décommente quand tu ajoutes les screenshots :
-![Rapport complet](docs/images/report-full.png)
-![Architecture](docs/images/architecture.png)
-![Drivers de coût](docs/images/cost-drivers.png)
-![Commentaire PR](docs/images/ci-pr-comment.png)
--->
+Un LLM local optionnel (Ollama) peut aussi résumer le rapport en langage simple.
+
+tfguard **ne déploie jamais** rien : il lit seulement le fichier du plan.
 
 ---
 
-## C'est quoi tfguard ?
+## 2. Démarrage rapide
 
-Un **`terraform plan` qui réussit ≠ un changement sûr.**
+### Installation
 
-Les gros plans cachent des actions destructives (suppression RDS, SG ouverts, resize d'instances). **tfguard** lit le JSON du plan **avant apply** et produit une revue structurée :
+| Méthode | Commande |
+|---|---|
+| Depuis les sources (Go 1.26+) | `git clone https://github.com/SamyBaouche/tfguard.git && cd tfguard && make build` |
+| `go install` | `go install github.com/SamyBaouche/tfguard/cmd/tfguard@latest` |
+| Binaire précompilé | À télécharger dans [Releases v0.1.0](https://github.com/SamyBaouche/tfguard/releases/tag/v0.1.0) (Linux, macOS, Windows · amd64, arm64) |
 
-| Dimension | Question répondue |
-|-----------|-------------------|
-| **Risque** | Quel danger pour chaque changement ? (`SAFE` → `CRITICAL`) |
-| **Sécurité** | Violations de policies ? (OPA, Checkov, tfsec) |
-| **Coût** | Delta mensuel AWS approximatif ? |
-| **ML** | Probabilité que le plan soit à haut risque ? |
-| **IA** | (Optionnel) Résumé en langage clair via Ollama local |
-| **Gate CI** | Faut-il bloquer le pipeline ? (`--fail-on`, `--max-cost-increase`) |
-
-tfguard **ne déploie pas** l'infra. Il **review** le plan et peut **bloquer la CI** avec un exit code non-zéro.
-
----
-
-## Fonctionnalités
-
-### Cœur du produit
-
-- **Parse du plan** — décode `terraform show -json` ; collapse `["delete","create"]` en `replace`
-- **Résumé des mutations** — compte create / update / replace / delete ; ignore no-ops et data sources
-- **Classification de risque** — niveaux par règles + **escalade stateful** (RDS, S3, EBS, DynamoDB…)
-- **Scan policies** — **OPA/Rego** embarqué (5 règles) + **Checkov** / **tfsec** optionnels
-- **Delta coût** — prix statiques us-east-1 (~20 SKUs) ; **top 3 drivers**
-- **Score ML** — régression logistique embarquée (**F1 0.99** sur hold-out)
-- **Explainer LLM** — résumé Ollama optionnel avec schéma JSON + cache SHA-256
-- **Rapport terminal** — boîtes colorées, tableaux, spinner, bannière
-- **Gates CI** — `--fail-on` (risque + findings) et `--max-cost-increase` (FinOps)
-
-### Release & automation
-
-- **v0.1.0** publiée via **GoReleaser** (6 plateformes)
-- **GitHub Action** (`action.yml`) — scan + commentaire sur les PR
-- **Workflow CI** — `go test` + `go vet` à chaque push
-
----
-
-## Comment ça marche
-
-```mermaid
-flowchart TB
-  subgraph Entrée
-    A[plan.json]
-  end
-
-  subgraph Pipeline
-    B[tfplan — parse & résumé]
-    C[risk — classification]
-    D[policy — OPA / Checkov / tfsec]
-    E[cost — delta mensuel]
-    F[mlscore — probabilité]
-    G[explain — Ollama optionnel]
-  end
-
-  subgraph Sortie
-    H[render — rapport terminal]
-    I{Gates CI}
-    J[exit 0]
-    K[exit 1]
-  end
-
-  A --> B
-  B --> C
-  B --> D
-  B --> E
-  C --> scan[scan.Report]
-  D --> scan
-  E --> scan
-  scan --> F
-  scan --> G
-  F --> H
-  G --> H
-  H --> I
-  I -->|ok| J
-  I -->|fail-on / max-cost| K
-```
-
-| Couche | Package | Rôle |
-|--------|---------|------|
-| Parse | `internal/tfplan` | Lire le plan JSON |
-| Risque | `internal/risk` | Noter chaque changement |
-| Policy | `internal/policy` | OPA + Checkov/tfsec |
-| Coût | `internal/cost` | Delta mensuel AWS statique |
-| ML | `internal/mlscore` | Probabilité haut risque |
-| Explain | `internal/explain` | Résumé Ollama (`--no-ai` pour skip) |
-| Orchestration | `internal/scan` | Rapport + gates CI |
-| Affichage | `internal/render` + `internal/ui` | Rapport terminal |
-| CLI | `cmd/tfguard` | Commandes `scan`, `version` |
-
-Checkov/tfsec manquants → **warning** seulement, pas de crash.
-
----
-
-## Installation
-
-### Option A — Build depuis les sources
-
-**Prérequis :** Go 1.26+
-
-```bash
-git clone https://github.com/SamyBaouche/tfguard.git
-cd tfguard
-make build
-./bin/tfguard version
-```
-
-### Option B — Binaire release
-
-Télécharge depuis [Releases v0.1.0](https://github.com/SamyBaouche/tfguard/releases/tag/v0.1.0) :
-
-| Plateforme | Archive |
-|------------|---------|
-| Linux amd64 | `tfguard_0.1.0_linux_amd64.tar.gz` |
-| Linux arm64 | `tfguard_0.1.0_linux_arm64.tar.gz` |
-| macOS amd64 | `tfguard_0.1.0_darwin_amd64.tar.gz` |
-| macOS arm64 (Apple Silicon) | `tfguard_0.1.0_darwin_arm64.tar.gz` |
-| Windows amd64 | `tfguard_0.1.0_windows_amd64.tar.gz` |
-| Windows arm64 | `tfguard_0.1.0_windows_arm64.tar.gz` |
-
-### Dépendances optionnelles
-
-| Outil | Usage | Obligatoire ? |
-|-------|-------|---------------|
-| **Ollama** | Explainer IA | Non (`--no-ai`) |
-| **Checkov** | Scan HCL | Non |
-| **tfsec** | Scan sécurité HCL | Non |
-| **Terraform** | Générer `plan.json` | Seulement pour vraie infra |
-
----
-
-## Démarrage rapide
-
-### Tester avec les fixtures (sans Terraform)
-
-```bash
-make build
-
-# Plan complet (create + update + delete + replace)
-./bin/tfguard scan --plan testdata/plan_mixed.json --no-ai --no-banner
-
-# Plan minimal
-./bin/tfguard scan --plan testdata/plan_minimal.json --no-ai --no-banner
-
-# Plan avec replace
-./bin/tfguard scan --plan testdata/plan_replace.json --no-ai --no-banner
-```
-
-Résultat attendu sur `plan_mixed.json` :
-- **Risque max :** `CRITICAL` (delete `aws_db_instance.main`)
-- **Coût :** `+7.59 USD/mo` (t3.micro → t3.small)
-- **ML :** probabilité haut risque affichée dans l'en-tête
-
-### Expérience complète (bannière + spinner)
+### Essayer sur un plan d'exemple
 
 ```bash
 ./bin/tfguard scan --plan testdata/plan_mixed.json --no-ai
 ```
 
-`NO_COLOR=1` pour sortie sans couleurs ANSI.
+### Scanner ta propre infrastructure
 
----
-
-## Générer un plan Terraform JSON
-
-À exécuter **dans ton projet Terraform** (dossier avec fichiers `.tf`), pas dans le repo tfguard :
+À lancer dans ton projet Terraform :
 
 ```bash
-cd /chemin/vers/ton/projet-terraform
 terraform init
 terraform plan -out=plan.tfplan
 terraform show -json plan.tfplan > plan.json
+
+tfguard scan --plan plan.json --dir . --fail-on DANGER
 ```
 
-Puis :
+### Outils optionnels
 
-```bash
-tfguard scan --plan plan.json --no-ai
-```
-
-Avec scanners HCL :
-
-```bash
-tfguard scan --plan plan.json --dir . --no-ai
-```
+| Outil | Sert à | S'il manque |
+|---|---|---|
+| Checkov | Règles supplémentaires sur les fichiers `.tf` (`--dir`) | Avertissement, le scan continue |
+| tfsec | Contrôles de sécurité supplémentaires sur les fichiers `.tf` (`--dir`) | Avertissement, le scan continue |
+| Ollama | Résumé IA | Avertissement, le scan continue |
 
 ---
 
-## Référence CLI
+## 3. Utilisation
 
 ### Commandes
 
 ```bash
-tfguard scan --plan <chemin>   # Analyser un plan JSON
-tfguard version                # Afficher la version
-tfguard --help                 # Aide
+tfguard scan --plan <plan.json> [options]   # relire un plan
+tfguard version                             # afficher la version
 ```
 
-### Flags `scan`
+### Options
 
-| Flag | Description | Défaut |
-|------|-------------|--------|
-| `--plan` | Chemin vers le plan JSON | **obligatoire** |
-| `--dir` | Racine Terraform pour Checkov/tfsec | — |
-| `--fail-on` | Exit 1 au niveau : `SAFE\|CAUTION\|DANGER\|CRITICAL` | désactivé |
-| `--max-cost-increase` | Exit 1 si delta coût USD/mo dépasse la valeur | désactivé |
-| `--no-ai` | Skip l'explainer Ollama | false |
-| `--ollama-url` | URL base Ollama | `http://127.0.0.1:11434` |
-| `--ollama-model` | Modèle Ollama | `llama3.2` |
-| `--skip-checkov` | Ne pas lancer Checkov | false |
-| `--skip-tfsec` | Ne pas lancer tfsec | false |
-| `--skip-opa` | Ne pas lancer OPA | false |
-| `--skip-cost` | Ne pas estimer le coût | false |
-| `--no-banner` | Skip la bannière animée | false |
+| Option | Défaut | Description |
+|---|---|---|
+| `--plan` | — | Fichier JSON du plan (**obligatoire**) |
+| `--dir` | — | Dossier des sources Terraform ; active Checkov et tfsec |
+| `--fail-on` | désactivé | Code `1` à partir de `SAFE`, `CAUTION`, `DANGER` ou `CRITICAL` |
+| `--max-cost-increase` | désactivé | Code `1` si la hausse du coût mensuel dépasse ce montant en USD |
+| `--no-ai` | `false` | Désactiver le résumé IA (recommandé en CI) |
+| `--ollama-url` | `http://127.0.0.1:11434` | Adresse d'Ollama |
+| `--ollama-model` | `llama3.2` | Modèle Ollama |
+| `--skip-opa` / `--skip-checkov` / `--skip-tfsec` / `--skip-cost` | `false` | Désactiver une étape |
+| `--no-banner` | `false` | Masquer la bannière de démarrage |
+
+Définis `NO_COLOR=1` pour une sortie sans couleurs.
 
 ### Codes de sortie
 
 | Code | Signification |
-|------|---------------|
-| `0` | Scan OK ; gates passées |
-| `1` | Gate déclenchée ou erreur runtime |
-| `2` | Erreur d'usage (flag invalide, `--plan` manquant) |
+|---|---|
+| `0` | Scan terminé, aucun seuil atteint |
+| `1` | Un seuil a été atteint, ou une erreur est survenue |
+| `2` | Mauvaise utilisation (option manquante ou invalide) |
 
-### Recettes courantes
+### Exemples
 
 ```bash
-# Revue basique
+# Relecture simple
 tfguard scan --plan plan.json --no-ai
 
-# CI : bloquer les plans dangereux
+# Bloquer les suppressions, les remplacements et les findings HIGH
 tfguard scan --plan plan.json --fail-on DANGER --no-ai
 
-# CI : bloquer si coût > 50 $/mois
+# Bloquer les changements qui ajoutent plus de 50 $/mois
 tfguard scan --plan plan.json --max-cost-increase 50 --no-ai
 
-# Strict : bloquer dès CAUTION
-tfguard scan --plan plan.json --fail-on CAUTION --no-ai
-
-# Scanners HCL + toutes les gates
+# Tout activer : scanners HCL et les deux seuils
 tfguard scan --plan plan.json --dir ./infra --fail-on CRITICAL --max-cost-increase 100 --no-ai
 
-# Dev local avec résumé IA (Ollama requis)
+# Avec le résumé IA
 ollama pull llama3.2
 tfguard scan --plan plan.json
+```
 
-# Scan rapide : sans coût ni IA
-tfguard scan --plan plan.json --skip-cost --no-ai --no-banner
+### Exemple de rapport
+
+```text
+╭─ Scan report ────────────────────────────────────────────╮
+│ plan   testdata/plan_mixed.json                          │
+│ risk   CRITICAL  (highest)                               │
+│ ml     100% high-risk probability                        │
+╰──────────────────────────────────────────────────────────╯
+
+╭─ Summary ────────────────────────────────────────────────╮
+│ create 1   update 1   replace 1   delete 1               │
+╰──────────────────────────────────────────────────────────╯
+
+╭─ Cost estimate ──────────────────────────────────────────╮
+│ delta  +7.59 USD/mo                                      │
+│ priced 1 resources · 3 unpriced                          │
+╰──────────────────────────────────────────────────────────╯
+▸ Top cost drivers
+  DELTA  BEFORE  AFTER  ADDRESS
+  +7.59  7.59    15.18  aws_instance.web
+
+▸ Changes
+  RISK      ACTION   TYPE                ADDRESS
+  CRITICAL  delete   aws_db_instance     aws_db_instance.main
+  CAUTION   update   aws_instance        aws_instance.web
+  CAUTION   create   aws_s3_bucket       aws_s3_bucket.logs
+  DANGER    replace  aws_security_group  aws_security_group.web
+
+▸ Policy findings
+  ✓ no findings
+
+  ▸  4 changes scanned · 0 policy findings · max risk CRITICAL · cost +7.59 USD/mo
 ```
 
 ---
 
-## Sections du rapport
+## 4. Fonctionnement
 
-| Section | Contenu |
-|---------|---------|
-| **Scan report** | Chemin plan, risque max, probabilité ML |
-| **Summary** | Compteurs create / update / replace / delete |
-| **Cost estimate** | Delta USD/mo, ressources pricées vs non pricées |
-| **Top cost drivers** | Top 3 ressources par \|delta\| |
-| **Changes** | Tableau RISK · ACTION · TYPE · ADDRESS |
-| **Policy findings** | Tableau SEV · SOURCE · ID · RESOURCE · TITLE |
-| **Warnings** | Checkov/tfsec/Ollama manquants |
-| **AI summary** | (si Ollama) résumé, risques, recommandations |
-| **Footer** | Totaux + delta coût |
+tfguard enchaîne des étapes simples. Chaque étape est un petit package Go, et `internal/scan` assemble les résultats en un seul rapport.
+
+```mermaid
+flowchart LR
+  A[plan.json] --> B[Lecture]
+  B --> C[Risque]
+  B --> D[Règles]
+  B --> E[Coût]
+  C --> R[Rapport]
+  D --> R
+  E --> R
+  R --> F[Score ML]
+  R -. optionnel .-> G[Résumé IA]
+  R --> H[Affichage terminal]
+  R --> I{Seuils}
+  I --> J[code 0 / 1]
+```
+
+| Étape | Package | Rôle |
+|---|---|---|
+| CLI | `cmd/tfguard` | Commandes, options, codes de sortie |
+| Orchestration | `internal/scan` | Lance chaque étape et évalue les seuils |
+| Lecture | `internal/tfplan` | Lit le plan et compte les create / update / replace / delete |
+| Risque | `internal/risk` | Attribue un niveau de risque à chaque changement |
+| Règles | `internal/policy` | Lance OPA, Checkov et tfsec, et fusionne leurs findings |
+| Coût | `internal/cost` | Estime le coût mensuel avant et après |
+| Score ML | `internal/mlscore` | Calcule la probabilité de risque élevé |
+| Résumé IA | `internal/explain` | Construit le prompt et vérifie la réponse du LLM |
+| Client LLM | `internal/llm` | Parle au LLM local (Ollama) derrière une interface `Provider` |
+| Affichage | `internal/render`, `internal/ui` | Rapport coloré dans le terminal |
 
 ---
 
-## Modèle de risque
+## 5. Ce que tfguard vérifie
 
-| Action | Niveau de base | Si stateful (+1) |
-|--------|----------------|------------------|
-| create / no-op / read | `SAFE` | `CAUTION` |
+### Niveaux de risque
+
+Chaque changement reçoit un niveau selon son action. Si la ressource stocke des données, le niveau monte **d'un cran**.
+
+| Action | Niveau | Niveau pour une ressource qui stocke des données |
+|---|---|---|
+| create | `SAFE` | `CAUTION` |
 | update | `CAUTION` | `DANGER` |
 | replace / delete | `DANGER` | `CRITICAL` |
 
-**Ressources stateful :** RDS, S3, EBS, DynamoDB, EFS, ElastiCache, Redshift, OpenSearch, DocumentDB, Neptune.
+Les ressources qui stockent des données incluent RDS, Aurora, S3, EBS, DynamoDB, EFS, ElastiCache, Redshift, OpenSearch, DocumentDB et Neptune. Le risque global du plan est le niveau le plus élevé trouvé.
 
-`--fail-on` mappe aussi la sévérité des findings : `CRITICAL`→`CRITICAL`, `HIGH`→`DANGER`, `MEDIUM`→`CAUTION`.
+### Règles de sécurité
 
----
+Cinq règles sont intégrées au binaire (`policies/*.rego`) :
 
-## Policies de sécurité
+| ID | Gravité | Détecte |
+|---|---|---|
+| `TFGUARD-S3-001` | HIGH | ACL de bucket S3 publique |
+| `TFGUARD-SG-001` | CRITICAL | Security group ouvert à `0.0.0.0/0` |
+| `TFGUARD-RDS-001` | HIGH | Stockage RDS non chiffré |
+| `TFGUARD-IAM-001` | CRITICAL | Politique IAM qui autorise toutes les actions (`*`) |
+| `TFGUARD-EBS-001` | HIGH | Volume EBS non chiffré |
 
-Rego embarqué dans `policies/` :
+Avec `--fail-on`, les findings comptent aussi : `CRITICAL` → `CRITICAL`, `HIGH` → `DANGER`, `MEDIUM` → `CAUTION`.
 
-| ID | Détecte |
-|----|---------|
-| `TFGUARD-S3-001` | Bucket S3 public |
-| `TFGUARD-SG-001` | Security group ouvert à `0.0.0.0/0` |
-| `TFGUARD-RDS-001` | RDS sans `storage_encrypted` |
-| `TFGUARD-IAM-001` | Policy IAM avec `Action: "*"` |
-| `TFGUARD-EBS-001` | Volume EBS non chiffré |
+Pour ajouter une règle, crée `policies/<nom>.rego` avec `package tfguard.<nom>` et une règle `violation` qui renvoie `id`, `severity`, `title`, `description` et `resource`.
 
-Scanners externes optionnels (nécessitent `--dir`) :
-- **Checkov** — moteur de policies IaC
-- **tfsec** — scanner sécurité Terraform
+### Estimation du coût
 
----
+tfguard calcule le prix de chaque ressource avant et après le changement, avec des prix fixes `us-east-1` à la demande :
 
-## Estimation de coût
+- **Instances** — 28 tailles pour EC2, RDS, ElastiCache, OpenSearch et Redshift
+- **Stockage** — RDS et EBS, au Go par mois
+- **Ressources à prix fixe** — NAT Gateway, load balancer, Elastic IP
 
-Prix statiques **us-east-1 on-demand** (~20 SKUs).
+Les services facturés à l'usage, comme S3 et DynamoDB, sont marqués *unpriced* au lieu d'être devinés. Les chiffres aident la relecture ; ce n'est pas une facture.
 
-Pour chaque changement :
-1. Décode le JSON `before` / `after`
-2. Extrait les attributs facturables
-3. Calcule le coût mensuel avant, après, et le delta
-4. Affiche les **3 principaux drivers**
+### Score de risque ML
 
-```bash
-tfguard scan --plan plan.json --max-cost-increase 50 --no-ai
-```
-
-> **Note :** estimation pour **review de plan**, pas facture AWS réelle.
-
-| Ressource | Attributs lus |
-|-----------|---------------|
-| `aws_instance` | `instance_type` |
-| `aws_db_instance` | `instance_class`, `allocated_storage` |
-| `aws_ebs_volume` | `size` |
-| NAT Gateway, ALB, EIP | prix fixe mensuel |
-
----
-
-## Score ML
-
-Régression logistique entraînée sur ~250 plans synthétiques labellisés.
+Un modèle de régression logistique estime la probabilité que le plan soit à risque élevé.
 
 | Élément | Détail |
-|---------|--------|
-| Dataset | `scripts/generate_dataset.py` |
-| Entraînement | `scripts/train_model.py` |
-| Inférence | `go:embed` dans le binaire |
-| Métriques hold-out | **precision 1.00 · recall 0.98 · F1 0.99** |
+|---|---|
+| Entrées | 10 variables : nombre de changements, changements sur des données, findings, écart de coût |
+| Entraînement | `scripts/generate_dataset.py` puis `scripts/train_model.py` |
+| Exécution | Poids intégrés au binaire (`internal/mlscore/model.json`) |
+| Résultats de test | Précision 1,00 · rappel 0,98 · F1 0,99 ([détails](data/model_metrics.json)) |
 
-Réentraîner :
+> **Note :** le modèle est entraîné sur 250 plans synthétiques dont les étiquettes viennent d'une règle de calcul, et testé sur seulement 50. Ces résultats montrent qu'il a appris cette règle, pas qu'il est précis sur de vrais plans.
+
+### Résumé IA (optionnel)
+
+Quand Ollama tourne en local, tfguard envoie une courte description JSON du scan (jamais tes fichiers `.tf`) et affiche un résumé, les principaux risques, des recommandations et une note sur le coût.
+
+- Les réponses suivent un schéma JSON strict et sont vérifiées avant affichage.
+- La température est réglée à 0 : le même scan donne le même résumé.
+- Les réponses sont mises en cache sur le disque, avec une clé SHA-256 du scan.
+- Si Ollama n'est pas disponible, le rapport s'affiche quand même.
+- L'IA ne décide jamais du code de sortie. Utilise `--no-ai` en CI.
+
+---
+
+## 6. Intégration CI/CD
+
+### N'importe quelle CI
+
+Génère le plan, lance tfguard, et laisse son code de sortie valider ou faire échouer le job :
+
+```yaml
+- run: |
+    terraform plan -out=plan.tfplan
+    terraform show -json plan.tfplan > plan.json
+    tfguard scan --plan plan.json --dir ./infra --fail-on DANGER --max-cost-increase 50 --no-ai
+```
+
+### GitHub Action
+
+`action.yml` compile tfguard, lance le scan et publie le rapport en commentaire de la pull request.
+
+```yaml
+name: Terraform review
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  tfguard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - uses: hashicorp/setup-terraform@v3
+
+      - working-directory: infra
+        run: |
+          terraform init
+          terraform plan -out=plan.tfplan
+          terraform show -json plan.tfplan > ../plan.json
+
+      - uses: ./
+        with:
+          plan-path: plan.json
+          terraform-dir: infra
+          fail-on: DANGER
+          max-cost-increase: "50"
+```
+
+| Entrée | Défaut | Description |
+|---|---|---|
+| `plan-path` | — | Fichier JSON du plan (**obligatoire**) |
+| `terraform-dir` | `""` | Dossier pour Checkov et tfsec |
+| `fail-on` | `""` | Seuil de risque |
+| `max-cost-increase` | `""` | Limite mensuelle en USD |
+| `no-ai` | `"true"` | Désactiver le résumé IA |
+
+---
+
+## 7. Développement
+
+### Commandes
+
+```bash
+make build   # compiler bin/tfguard
+make test    # lancer les tests avec la couverture
+make test-integration  # lancer aussi le vrai Terraform (lent, Terraform requis)
+make vet     # analyse statique
+make fmt     # formater le code
+make clean   # supprimer bin/
+```
+
+### Tests
+
+- Les tests unitaires utilisent des fichiers JSON dans `testdata/` ; ils n'appellent jamais Terraform, AWS ni un LLM.
+- Les tests d'intégration lancent le vrai `terraform init` et `terraform validate` sur les cas de `testdata/fix/`. Ils sont ignorés sauf si tu passes `-integration` (`make test-integration`).
+- Les packages principaux sont presque entièrement couverts : `risk` 100 %, `tfplan` ~98 %, `fix` ~96 % (avec les tests d'intégration), `mlscore` ~93 %.
+
+### Réentraîner le modèle ML
 
 ```bash
 python3 scripts/generate_dataset.py
@@ -405,152 +357,76 @@ python3 scripts/train_model.py
 make test
 ```
 
----
+Commite ensuite `internal/mlscore/model.json` et `data/model_metrics.json`.
 
-## Explainer IA (optionnel)
+### Publier une version
 
-Avec **Ollama** local, tfguard envoie un contexte JSON compact et affiche :
-- `summary` — vue d'ensemble
-- `risks` — liste de risques (max 5)
-- `recommendations` — prochaines étapes (max 5)
-- `cost_note` — impact coût
-
-Cache SHA-256 : `$XDG_CACHE_HOME/tfguard/explain/`
+Pousser un tag `v*` compile et publie les binaires pour 6 plateformes avec GoReleaser :
 
 ```bash
-ollama pull llama3.2
-tfguard scan --plan plan.json
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
-En CI : toujours `--no-ai`.
-
----
-
-## Intégration CI/CD
-
-```yaml
-- name: Terraform Plan
-  run: |
-    terraform plan -out=plan.tfplan
-    terraform show -json plan.tfplan > plan.json
-
-- name: tfguard scan
-  run: |
-    tfguard scan \
-      --plan plan.json \
-      --dir ./infra \
-      --fail-on DANGER \
-      --max-cost-increase 50 \
-      --no-ai
-
-- name: Terraform Apply
-  if: success()
-  run: terraform apply plan.tfplan
-```
-
----
-
-## GitHub Action
-
-```yaml
-name: Revue plan Terraform
-
-on:
-  pull_request:
-
-jobs:
-  tfguard:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Plan
-        working-directory: infra
-        run: |
-          terraform init
-          terraform plan -out=plan.tfplan
-          terraform show -json plan.tfplan > ../plan.json
-
-      - name: tfguard scan
-        uses: ./
-        with:
-          plan-path: plan.json
-          terraform-dir: infra
-          fail-on: DANGER
-          max-cost-increase: "50"
-          no-ai: "true"
-```
-
-L'Action **commente le rapport sur la PR**.
-
----
-
-## Structure du projet
+### Structure du projet
 
 ```text
-tfguard/
-├── cmd/tfguard/          Point d'entrée CLI
-├── internal/
-│   ├── tfplan/           Parse plan JSON
-│   ├── risk/             Classification SAFE → CRITICAL
-│   ├── policy/           OPA + Checkov + tfsec
-│   ├── cost/             Delta coût AWS
-│   ├── mlscore/          Modèle ML embarqué
-│   ├── explain/          Explainer Ollama
-│   ├── scan/             Orchestration + gates CI
-│   ├── render/           Formatage rapport
-│   └── ui/               Couleurs, spinner, bannière
-├── policies/             Règles Rego embarquées
-├── scripts/              Dataset, entraînement ML, GIF démo
-├── testdata/             Fixtures JSON pour tests
-├── docs/
-│   ├── demo.gif          GIF animé CLI
-│   └── images/           Tes captures d'écran ici
-├── data/                 Dataset ML + métriques
-├── action.yml            GitHub Action
-└── .github/workflows/    CI + release
-```
-
-Module : `github.com/SamyBaouche/tfguard`
-
----
-
-## Développement
-
-```bash
-make test      # tests + coverage
-make vet       # go vet
-make fmt       # go fmt
-make build     # compile bin/tfguard
-make clean     # supprime bin/
-```
-
-Voir [CONTRIBUTING.md](CONTRIBUTING.md).
-
-Regénérer le GIF démo :
-
-```bash
-python3 -m venv .venv
-.venv/bin/pip install pillow
-.venv/bin/python scripts/generate_demo_gif.py
+cmd/tfguard/        point d'entrée de la CLI
+internal/
+  scan/             pipeline et seuils
+  tfplan/           lecture du plan
+  risk/             niveaux de risque
+  policy/           OPA, Checkov, tfsec
+  cost/             estimation du coût
+  mlscore/          modèle ML
+  explain/          résumé IA
+  llm/              client LLM (Ollama)
+  fix/              correction automatique par IA (en cours)
+  render/, ui/      affichage terminal
+policies/           règles Rego
+scripts/            données et entraînement ML
+data/               données et métriques du modèle
+testdata/           fichiers de test (fix/ contient les cas Terraform pour la correction IA)
+action.yml          GitHub Action
+.goreleaser.yaml    configuration des releases
 ```
 
 ---
 
-## Roadmap
+## 8. Conception et limites
 
-| Statut | Item |
-|--------|------|
-| ✅ Fait | Parse, risk, policies, CLI, coût, ML, Ollama, GitHub Action, v0.1.0 |
-| 🔜 Prévu | Dataset ML plus riche (vrais plans Terraform) |
-| 🔜 Prévu | Plus de SKUs AWS + API Pricing dynamique |
-| 🔜 Prévu | Dossier `examples/` avec mini projet Terraform |
+### Choix de conception
+
+- **Le plan fait foi.** Il montre ce que Terraform va vraiment faire, une fois les variables et modules résolus.
+- **Les règles décident, l'IA explique.** Les codes de sortie dépendent seulement des règles et du modèle ML, donc les résultats sont reproductibles.
+- **Les outils optionnels ne cassent jamais l'exécution.** Un Checkov, tfsec ou Ollama manquant ajoute seulement un avertissement.
+- **Un seul binaire autonome.** Règles et poids du modèle sont intégrés ; ni Python ni serveur OPA nécessaires.
+- **IA locale uniquement.** Les données de ton infrastructure ne quittent jamais ta machine.
+
+### Limites
+
+- AWS uniquement. Les autres providers sont lus, mais sans règles de risque spécifiques ni prix.
+- Les prix sont des valeurs fixes `us-east-1`.
+- Le modèle ML est entraîné sur des données synthétiques.
+- La GitHub Action ne fonctionne pour l'instant que dans ce dépôt.
 
 ---
 
-## Licence
+## 9. Feuille de route
 
-Apache 2.0 — voir [LICENSE](LICENSE).
+| Statut | Élément |
+|---|---|
+| ✅ Fait | Lecture du plan, niveaux de risque, règles, coût, score ML, résumé IA, CLI |
+| ✅ Fait | GitHub Action, release v0.1.0 |
+| 🚧 En cours | **Correction automatique par IA** : `tfguard fix` répare une config Terraform invalide avec un LLM local, `terraform validate` et le schéma du provider. Déjà fait : client LLM partagé, exécution de `terraform init`/`validate` et lecture des diagnostics |
+| 🔜 Prévu | Banc d'essai des corrections IA (taux de réussite, vitesse) |
+| 🔜 Prévu | GitHub Action utilisable depuis n'importe quel dépôt |
+| 🔜 Prévu | Modèle ML entraîné sur de vrais plans |
+| 🔜 Prévu | Plus de prix AWS |
+
+---
+
+## 10. Contribution et licence
+
+Les contributions sont les bienvenues — voir [CONTRIBUTING.md](CONTRIBUTING.md). Avant d'ouvrir une pull request, lance `make test && make vet && make fmt`.
+
+Sous licence Apache 2.0 — voir [LICENSE](LICENSE).

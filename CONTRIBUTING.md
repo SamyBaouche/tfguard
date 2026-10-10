@@ -16,8 +16,9 @@ make build
 
 1. Keep changes focused and small.
 2. Run `make test && make vet && make fmt` before opening a PR.
-3. Add or update tests for behavior changes.
-4. Update README when CLI flags or output change.
+3. If you touch `internal/fix`, also run `make test-integration` (requires Terraform on PATH).
+4. Add or update tests for behavior changes.
+5. Update `README.md` and `README.fr.md` when CLI flags or output change.
 
 ## ML model refresh
 

@@ -347,7 +347,7 @@ make clean   # remove bin/
 
 - Unit tests use JSON fixtures in `testdata/`; they never call Terraform, AWS or an LLM.
 - Integration tests run the real `terraform init` and `terraform validate` on `testdata/fix/` cases. They are skipped unless you pass `-integration` (`make test-integration`).
-- Core packages are almost fully covered: `risk` 100%, `tfplan` ~98%, `mlscore` ~93%.
+- Core packages are almost fully covered: `risk` 100%, `tfplan` ~98%, `fix` ~96% (with integration tests), `mlscore` ~93%.
 
 ### Retrain the ML model
 
@@ -380,6 +380,7 @@ internal/
   mlscore/          ML model
   explain/          AI summary
   llm/              LLM client (Ollama)
+  fix/              AI auto-fix (in progress)
   render/, ui/      terminal output
 policies/           Rego policies
 scripts/            ML dataset and training
@@ -416,7 +417,7 @@ action.yml          GitHub Action
 |---|---|
 | ✅ Done | Plan parsing, risk levels, policies, cost, ML score, AI summary, CLI |
 | ✅ Done | GitHub Action, v0.1.0 release |
-| 🚧 In progress | **AI auto-fix**: `tfguard fix` repairs invalid Terraform using a local LLM, `terraform validate` and the provider schema |
+| 🚧 In progress | **AI auto-fix**: `tfguard fix` repairs invalid Terraform using a local LLM, `terraform validate` and the provider schema. Done so far: shared LLM client, `terraform init`/`validate` runner and diagnostics parser |
 | 🔜 Planned | Benchmark for AI fixes (success rate, speed) |
 | 🔜 Planned | GitHub Action usable from any repository |
 | 🔜 Planned | ML model trained on real plans |
