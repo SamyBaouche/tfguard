@@ -3,6 +3,7 @@ package explain
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -133,6 +134,51 @@ func TestExplainOllama(t *testing.T) {
 	})
 	if err != nil || !got2.Cached {
 		t.Fatalf("expected cache hit, got %+v", got2)
+	}
+}
+
+// fakeProvider is an in-memory llm.Provider that records its last call.
+type fakeProvider struct {
+	reply  string
+	err    error
+	prompt string
+	schema string
+}
+
+func (f *fakeProvider) Generate(_ context.Context, prompt, schema string) ([]byte, error) {
+	f.prompt, f.schema = prompt, schema
+	return []byte(f.reply), f.err
+}
+
+func TestExplainUsesProvider(t *testing.T) {
+	t.Parallel()
+	fake := &fakeProvider{
+		reply: `{"summary":"From fake","risks":["r"],"recommendations":["x"],"cost_note":"c"}`,
+	}
+
+	got, err := Explain(context.Background(), sampleInput(), Options{
+		Provider: fake,
+		CacheDir: t.TempDir(),
+	})
+	if err != nil || got.Explanation == nil || got.Explanation.Summary != "From fake" {
+		t.Fatalf("explain = %+v err=%v", got, err)
+	}
+	if fake.schema != JSONSchema {
+		t.Fatalf("schema not forwarded: %q", fake.schema)
+	}
+	if !strings.Contains(fake.prompt, "aws_db_instance.main") {
+		t.Fatalf("prompt is missing scan data: %s", fake.prompt)
+	}
+}
+
+func TestExplainProviderErrorIsSoft(t *testing.T) {
+	t.Parallel()
+	got, err := Explain(context.Background(), sampleInput(), Options{
+		Provider: &fakeProvider{err: errors.New("model not found")},
+		CacheDir: t.TempDir(),
+	})
+	if err != nil || got.Explanation != nil || !strings.Contains(got.Warning, "model not found") {
+		t.Fatalf("expected soft warning, got %+v err=%v", got, err)
 	}
 }
 

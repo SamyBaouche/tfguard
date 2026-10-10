@@ -4,6 +4,8 @@ package explain
 import (
 	"context"
 	"fmt"
+
+	"github.com/SamyBaouche/tfguard/internal/llm"
 )
 
 // Result holds an explanation or a soft skip/warning.
@@ -16,10 +18,11 @@ type Result struct {
 
 // Options configures the explainer.
 type Options struct {
-	Skip      bool   // --no-ai
-	OllamaURL string // default http://127.0.0.1:11434
-	Model     string // default llama3.2
-	CacheDir  string // default $XDG_CACHE_HOME/tfguard/explain
+	Skip      bool         // --no-ai
+	OllamaURL string       // default http://127.0.0.1:11434
+	Model     string       // default llama3.2
+	CacheDir  string       // default <user cache dir>/tfguard/explain
+	Provider  llm.Provider // optional; when nil, an Ollama provider is built from OllamaURL and Model
 }
 
 // Explain builds context, checks cache, and calls Ollama when enabled.
@@ -44,8 +47,11 @@ func Explain(ctx context.Context, in Input, opts Options) (Result, error) {
 		return Result{Explanation: &exp, Cached: true}, nil
 	}
 
-	client := newOllamaClient(opts.OllamaURL, opts.Model)
-	raw, err := client.generate(ctx, buildPrompt(ctxJSON))
+	provider := opts.Provider
+	if provider == nil {
+		provider = llm.NewOllama(opts.OllamaURL, opts.Model)
+	}
+	raw, err := provider.Generate(ctx, buildPrompt(ctxJSON), JSONSchema)
 	if err != nil {
 		return Result{Warning: fmt.Sprintf("AI explainer unavailable: %v", err)}, nil
 	}
