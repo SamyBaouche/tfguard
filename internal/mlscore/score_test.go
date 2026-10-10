@@ -37,7 +37,7 @@ func TestPredictLowRisk(t *testing.T) {
 
 func TestEmbeddedModel(t *testing.T) {
 	t.Parallel()
-	m := ModelInfo()
+	m := loaded
 	if len(m.Features) != len(m.Weights) || m.Features[0] != "creates" {
 		t.Fatalf("model = %+v", m)
 	}

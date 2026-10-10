@@ -78,6 +78,3 @@ func sigmoid(x float64) float64 {
 	z := math.Exp(x)
 	return z / (1.0 + z)
 }
-
-// ModelInfo returns embedded model metadata for docs/tests.
-func ModelInfo() Model { return loaded }
