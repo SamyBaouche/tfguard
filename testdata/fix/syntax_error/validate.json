@@ -1,0 +1,164 @@
+{
+  "format_version": "1.0",
+  "valid": false,
+  "error_count": 6,
+  "warning_count": 0,
+  "diagnostics": [
+    {
+      "severity": "error",
+      "summary": "Invalid multi-line string",
+      "detail": "Quoted strings may not be split over multiple lines. To produce a multi-line string, either use the \\n escape to represent a newline character or use the \"heredoc\" multi-line template syntax.",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 15,
+          "column": 30,
+          "byte": 240
+        },
+        "end": {
+          "line": 17,
+          "column": 1,
+          "byte": 244
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket\" \"logs\"",
+        "code": "  bucket = \"tfguard-demo-logs\n  tags = {",
+        "start_line": 15,
+        "highlight_start_offset": 29,
+        "highlight_end_offset": 33,
+        "values": []
+      }
+    },
+    {
+      "severity": "error",
+      "summary": "Invalid multi-line string",
+      "detail": "Quoted strings may not be split over multiple lines. To produce a multi-line string, either use the \\n escape to represent a newline character or use the \"heredoc\" multi-line template syntax.",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 17,
+          "column": 11,
+          "byte": 254
+        },
+        "end": {
+          "line": 18,
+          "column": 1,
+          "byte": 256
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket\" \"logs\"",
+        "code": "  tags = {\n    Team = \"platform\"",
+        "start_line": 17,
+        "highlight_start_offset": 10,
+        "highlight_end_offset": 12,
+        "values": []
+      }
+    },
+    {
+      "severity": "error",
+      "summary": "Invalid multi-line string",
+      "detail": "Quoted strings may not be split over multiple lines. To produce a multi-line string, either use the \\n escape to represent a newline character or use the \"heredoc\" multi-line template syntax.",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 18,
+          "column": 22,
+          "byte": 277
+        },
+        "end": {
+          "line": 19,
+          "column": 1,
+          "byte": 279
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket\" \"logs\"",
+        "code": "    Team = \"platform\"\n  }",
+        "start_line": 18,
+        "highlight_start_offset": 21,
+        "highlight_end_offset": 23,
+        "values": []
+      }
+    },
+    {
+      "severity": "error",
+      "summary": "Invalid multi-line string",
+      "detail": "Quoted strings may not be split over multiple lines. To produce a multi-line string, either use the \\n escape to represent a newline character or use the \"heredoc\" multi-line template syntax.",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 19,
+          "column": 4,
+          "byte": 282
+        },
+        "end": {
+          "line": 20,
+          "column": 1,
+          "byte": 284
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket\" \"logs\"",
+        "code": "  }\n}",
+        "start_line": 19,
+        "highlight_start_offset": 3,
+        "highlight_end_offset": 5,
+        "values": []
+      }
+    },
+    {
+      "severity": "error",
+      "summary": "Invalid multi-line string",
+      "detail": "Quoted strings may not be split over multiple lines. To produce a multi-line string, either use the \\n escape to represent a newline character or use the \"heredoc\" multi-line template syntax.",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 20,
+          "column": 2,
+          "byte": 285
+        },
+        "end": {
+          "line": 21,
+          "column": 1,
+          "byte": 287
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket\" \"logs\"",
+        "code": "}",
+        "start_line": 20,
+        "highlight_start_offset": 1,
+        "highlight_end_offset": 1,
+        "values": []
+      }
+    },
+    {
+      "severity": "error",
+      "summary": "Unterminated template string",
+      "detail": "No closing marker was found for the string.",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 15,
+          "column": 30,
+          "byte": 240
+        },
+        "end": {
+          "line": 17,
+          "column": 1,
+          "byte": 244
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket\" \"logs\"",
+        "code": "  bucket = \"tfguard-demo-logs\n  tags = {",
+        "start_line": 15,
+        "highlight_start_offset": 29,
+        "highlight_end_offset": 33,
+        "values": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "format_version": "1.0",
+  "valid": false,
+  "error_count": 2,
+  "warning_count": 0,
+  "diagnostics": [
+    {
+      "severity": "error",
+      "summary": "Reference to undeclared input variable",
+      "detail": "An input variable with the name \"environment\" has not been declared. This variable can be declared with a variable \"environment\" {} block.",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 15,
+          "column": 33,
+          "byte": 243
+        },
+        "end": {
+          "line": 15,
+          "column": 48,
+          "byte": 258
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket\" \"logs\"",
+        "code": "  bucket = \"tfguard-demo-logs-${var.environment}\"",
+        "start_line": 15,
+        "highlight_start_offset": 32,
+        "highlight_end_offset": 47,
+        "values": []
+      }
+    },
+    {
+      "severity": "error",
+      "summary": "Reference to undeclared input variable",
+      "detail": "An input variable with the name \"environment\" has not been declared. This variable can be declared with a variable \"environment\" {} block.",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 18,
+          "column": 19,
+          "byte": 294
+        },
+        "end": {
+          "line": 18,
+          "column": 34,
+          "byte": 309
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket\" \"logs\"",
+        "code": "    Environment = var.environment",
+        "start_line": 18,
+        "highlight_start_offset": 18,
+        "highlight_end_offset": 33,
+        "values": []
+      }
+    }
+  ]
+}

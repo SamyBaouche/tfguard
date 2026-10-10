@@ -1,0 +1,34 @@
+{
+  "format_version": "1.0",
+  "valid": false,
+  "error_count": 1,
+  "warning_count": 0,
+  "diagnostics": [
+    {
+      "severity": "error",
+      "summary": "Missing required argument",
+      "detail": "The argument \"bucket\" is required, but no definition was found.",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 18,
+          "column": 53,
+          "byte": 300
+        },
+        "end": {
+          "line": 18,
+          "column": 54,
+          "byte": 301
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket_public_access_block\" \"logs\"",
+        "code": "resource \"aws_s3_bucket_public_access_block\" \"logs\" {",
+        "start_line": 18,
+        "highlight_start_offset": 52,
+        "highlight_end_offset": 53,
+        "values": []
+      }
+    }
+  ]
+}

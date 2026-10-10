@@ -1,0 +1,35 @@
+{
+  "format_version": "1.0",
+  "valid": true,
+  "error_count": 0,
+  "warning_count": 1,
+  "diagnostics": [
+    {
+      "severity": "warning",
+      "summary": "Argument is deprecated",
+      "detail": "versioning is deprecated. Use the aws_s3_bucket_versioning resource instead.",
+      "address": "aws_s3_bucket.logs",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 14,
+          "column": 33,
+          "byte": 208
+        },
+        "end": {
+          "line": 14,
+          "column": 34,
+          "byte": 209
+        }
+      },
+      "snippet": {
+        "context": "resource \"aws_s3_bucket\" \"logs\"",
+        "code": "resource \"aws_s3_bucket\" \"logs\" {",
+        "start_line": 14,
+        "highlight_start_offset": 32,
+        "highlight_end_offset": 33,
+        "values": []
+      }
+    }
+  ]
+}
