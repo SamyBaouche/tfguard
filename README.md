@@ -200,7 +200,8 @@ flowchart LR
 | Policies | `internal/policy` | Runs OPA, Checkov and tfsec, merges their findings |
 | Cost | `internal/cost` | Estimates the monthly cost before and after |
 | ML score | `internal/mlscore` | Computes the high-risk probability |
-| AI summary | `internal/explain` | Asks a local LLM for a plain-English summary |
+| AI summary | `internal/explain` | Builds the prompt and checks the LLM's answer |
+| LLM client | `internal/llm` | Talks to the local LLM (Ollama) behind a `Provider` interface |
 | Output | `internal/render`, `internal/ui` | Colored terminal report |
 
 ---
@@ -263,6 +264,7 @@ A logistic regression model estimates the probability that the plan is high-risk
 When Ollama runs locally, tfguard sends a short JSON description of the scan (never your `.tf` files) and shows a summary, key risks, recommendations and a cost note.
 
 - Answers follow a strict JSON schema and are checked before display.
+- Temperature is set to 0, so the same scan gives the same summary.
 - Answers are cached on disk, keyed by a SHA-256 hash of the scan.
 - If Ollama is not available, the report is still shown.
 - The AI never decides the exit code. Use `--no-ai` in CI.
@@ -375,6 +377,7 @@ internal/
   cost/             cost estimate
   mlscore/          ML model
   explain/          AI summary
+  llm/              LLM client (Ollama)
   render/, ui/      terminal output
 policies/           Rego policies
 scripts/            ML dataset and training
