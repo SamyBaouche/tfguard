@@ -9,7 +9,7 @@ import (
 
 func TestVersion(t *testing.T) {
 	var out, errBuf bytes.Buffer
-	code := executeForTest(&out, &errBuf, []string{"version"})
+	code := execute(&out, &errBuf, []string{"version"})
 	if code != 0 {
 		t.Fatalf("exit = %d stderr=%q", code, errBuf.String())
 	}
@@ -20,7 +20,7 @@ func TestVersion(t *testing.T) {
 
 func TestScanMissingPlan(t *testing.T) {
 	var out, errBuf bytes.Buffer
-	code := executeForTest(&out, &errBuf, []string{"scan"})
+	code := execute(&out, &errBuf, []string{"scan"})
 	if code == 0 {
 		t.Fatalf("expected non-zero exit, stdout=%q stderr=%q", out.String(), errBuf.String())
 	}
@@ -29,7 +29,7 @@ func TestScanMissingPlan(t *testing.T) {
 func TestScanFailOn(t *testing.T) {
 	plan := filepath.Join("..", "..", "testdata", "plan_mixed.json")
 	var out, errBuf bytes.Buffer
-	code := executeForTest(&out, &errBuf, []string{
+	code := execute(&out, &errBuf, []string{
 		"scan",
 		"--plan", plan,
 		"--fail-on", "DANGER",
@@ -47,7 +47,7 @@ func TestScanFailOn(t *testing.T) {
 func TestScanMaxCostIncrease(t *testing.T) {
 	plan := filepath.Join("..", "..", "testdata", "plan_mixed.json")
 	var out, errBuf bytes.Buffer
-	code := executeForTest(&out, &errBuf, []string{
+	code := execute(&out, &errBuf, []string{
 		"scan",
 		"--plan", plan,
 		"--max-cost-increase", "1",
@@ -69,7 +69,7 @@ func TestScanMaxCostIncrease(t *testing.T) {
 func TestScanMaxCostIncreaseInvalid(t *testing.T) {
 	plan := filepath.Join("..", "..", "testdata", "plan_mixed.json")
 	var out, errBuf bytes.Buffer
-	code := executeForTest(&out, &errBuf, []string{
+	code := execute(&out, &errBuf, []string{
 		"scan",
 		"--plan", plan,
 		"--max-cost-increase", "nope",
@@ -81,7 +81,7 @@ func TestScanMaxCostIncreaseInvalid(t *testing.T) {
 
 func TestUnknownCommand(t *testing.T) {
 	var out, errBuf bytes.Buffer
-	code := executeForTest(&out, &errBuf, []string{"nope"})
+	code := execute(&out, &errBuf, []string{"nope"})
 	if code == 0 {
 		t.Fatalf("expected non-zero exit for unknown command")
 	}
@@ -89,7 +89,7 @@ func TestUnknownCommand(t *testing.T) {
 
 func TestEmptyArgs(t *testing.T) {
 	var out, errBuf bytes.Buffer
-	code := executeForTest(&out, &errBuf, nil)
+	code := execute(&out, &errBuf, nil)
 	if code != 2 {
 		t.Fatalf("exit = %d, want 2", code)
 	}

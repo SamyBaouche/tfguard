@@ -11,6 +11,8 @@ import (
 // Version is set at build time: -ldflags="-X main.Version=..."
 var Version = "0.1.0"
 
+const errCommandRequired = "command required: scan | version"
+
 // exitError carries a process exit code through Cobra's error return.
 type exitError struct {
 	code int
@@ -48,7 +50,7 @@ Commands:
 		// Running with no subcommand shows help and returns an error we map to exit 2.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
-			return &exitError{code: 2, msg: "command required: scan | version"}
+			return &exitError{code: 2, msg: errCommandRequired}
 		},
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -89,23 +91,7 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 `
 
 // execute runs the CLI with args (without the program name) and returns an exit code.
-func execute(args []string) int {
-	root := newRootCmd()
-	root.SetArgs(args)
-
-	err := root.Execute()
-	if err != nil {
-		// Avoid double-printing the "command required" message after Help.
-		var ee *exitError
-		if !(errors.As(err, &ee) && ee.code == 2 && ee.msg == "command required: scan | version") {
-			fmt.Fprintln(root.ErrOrStderr(), err)
-		}
-	}
-	return exitCode(err)
-}
-
-// executeForTest runs the CLI and captures writers for unit tests.
-func executeForTest(stdout, stderr io.Writer, args []string) int {
+func execute(stdout, stderr io.Writer, args []string) int {
 	root := newRootCmd()
 	root.SetOut(stdout)
 	root.SetErr(stderr)
@@ -113,8 +99,9 @@ func executeForTest(stdout, stderr io.Writer, args []string) int {
 
 	err := root.Execute()
 	if err != nil {
+		// The root command already printed help for this one; don't repeat it.
 		var ee *exitError
-		if !(errors.As(err, &ee) && ee.code == 2 && ee.msg == "command required: scan | version") {
+		if !(errors.As(err, &ee) && ee.code == 2 && ee.msg == errCommandRequired) {
 			fmt.Fprintln(stderr, err)
 		}
 	}

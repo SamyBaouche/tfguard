@@ -47,11 +47,6 @@ func Section(w io.Writer, style Style, title string) {
 	fmt.Fprintln(w, style.Dim("  "+strings.Repeat("─", boxInner-2)))
 }
 
-// Divider prints a light horizontal rule.
-func Divider(w io.Writer, style Style) {
-	fmt.Fprintln(w, style.Dim("  "+strings.Repeat("·", boxInner-2)))
-}
-
 func stripANSILen(s string) int {
 	n := 0
 	inEsc := false

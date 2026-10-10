@@ -4,5 +4,5 @@ package main
 import "os"
 
 func main() {
-	os.Exit(execute(os.Args[1:]))
+	os.Exit(execute(os.Stdout, os.Stderr, os.Args[1:]))
 }

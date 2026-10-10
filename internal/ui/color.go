@@ -2,7 +2,6 @@
 package ui
 
 import (
-	"fmt"
 	"io"
 	"os"
 )
@@ -76,9 +75,4 @@ func (s Style) Risk(level string) string {
 	default:
 		return level
 	}
-}
-
-// Fprintf is fmt.Fprintf with no extra behavior (helper for call sites).
-func Fprintf(w io.Writer, format string, args ...any) {
-	fmt.Fprintf(w, format, args...)
 }
