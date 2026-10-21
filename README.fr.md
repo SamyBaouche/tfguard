@@ -42,6 +42,8 @@ Un LLM local optionnel (Ollama) peut aussi résumer le rapport en langage simple
 
 tfguard **ne déploie jamais** rien : il lit seulement le fichier du plan.
 
+![Rapport tfguard](docs/images/report-full.png)
+
 ---
 
 ## 2. Démarrage rapide

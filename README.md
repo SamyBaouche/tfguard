@@ -42,6 +42,8 @@ An optional local LLM (Ollama) can also summarize the report in plain English.
 
 tfguard **never deploys** anything: it only reads the plan file.
 
+![tfguard scan report](docs/images/report-full.png)
+
 ---
 
 ## 2. Quick start
